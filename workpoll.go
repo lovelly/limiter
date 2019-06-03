@@ -87,9 +87,10 @@ func (p *WorkerPool) PushJobTimeOut(f JobFunc) error {
 		return errors.New("pool already closed")
 	}
 
-	t := time.NewTicker(15 * time.Second)
+	t := time.NewTimer(15 * time.Second)
 	select {
 	case w := <-p.workerChan:
+		t.Stop()
 		if w == nil {
 			return errors.New("pool is closed")
 		}
@@ -122,6 +123,7 @@ func (p *WorkerPool) hub() {
 	go func() {
 		expiry := time.Duration(p.expiry) * time.Second
 		tick := time.NewTicker(expiry)
+		defer tick.Stop()
 		for range tick.C {
 			if p.close == 1 {
 				tick.Stop()

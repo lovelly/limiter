@@ -1,9 +1,9 @@
 package limiter
 
 import (
-	"sync/atomic"
-
 	"errors"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -13,6 +13,7 @@ type WorkerPool struct {
 	maxWorkerCount int32
 	close          int32
 	expiry         int
+	one  sync.Once
 }
 
 //限制同时并发workerNum 个
@@ -36,7 +37,9 @@ func NewHupWorkPool(workerNum int) *WorkerPool {
 // close 保证正回收所有工作协程
 func (p *WorkerPool) Close() {
 	atomic.StoreInt32(&p.close, 1)
-	close(p.workerChan)
+	p.one.Do(func() {
+		close(p.workerChan)
+	})
 	for len(p.workerChan) > 0 {
 		w := <-p.workerChan
 		w.Close()

@@ -3,17 +3,14 @@ package limiter
 import (
 	"context"
 	"fmt"
+	"golang.org/x/time/rate"
+	"math/rand"
+	"net/http"
 	_ "net/http/pprof"
-	"quick/utils"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
-
-	"net/http"
-
-	"github.com/panjf2000/ants"
-	"golang.org/x/time/rate"
 )
 
 var (
@@ -45,34 +42,9 @@ func demoFunc() error {
 	inc -= n
 	inc += n
 	incLk.Unlock()
-	r := utils.RandInt(1, 10)
+	r := RandInt(1, 10)
 	time.Sleep(time.Duration(r) * time.Second)
 	return nil
-}
-
-func TestAntsPool(t *testing.T) {
-	go http.ListenAndServe(":8087", nil)
-	pool, _ := ants.NewPool(n / 2)
-	start := time.Now().Unix()
-	wg := sync.WaitGroup{}
-	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func() {
-			pool.Submit(func() error {
-				demoFunc()
-				return nil
-			})
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-	fmt.Println("end wait ", time.Now().Unix()-start)
-	pool.Release()
-	fmt.Println("end pool ", time.Now().Unix()-start)
-	fmt.Println("inc: ", inc)
-	mem := runtime.MemStats{}
-	runtime.ReadMemStats(&mem)
-	t.Logf("memory usage:%d MB", mem.TotalAlloc/MiB)
 }
 
 func TestWrokerStart(t *testing.T) {
@@ -129,4 +101,16 @@ func T1estLimiter(t *testing.T) {
 	mem := runtime.MemStats{}
 	runtime.ReadMemStats(&mem)
 	t.Logf("memory usage:%d MB", mem.TotalAlloc/MiB)
+}
+
+func RandInt(n1, n2 int) int {
+	if n1 == n2 {
+		return n1
+	}
+
+	min, max := int64(n1), int64(n2)
+	if min > max {
+		min, max = max, min
+	}
+	return int(rand.Int63n(max-min+1) + min)
 }
